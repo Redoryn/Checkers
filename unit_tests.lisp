@@ -1,0 +1,100 @@
+(in-package :checkers)
+
+(define-test validate-available-moves
+  (let ((board (fill-board 'empty)))
+    (setf board (place-piece '(2 2) board 'red 'king))
+    (setf board (place-piece '(3 3) board 'black 'pawn))
+    (setf board (place-piece '(5 5) board 'black 'pawn))
+    (setf board (place-piece '(5 3) board 'black 'pawn))
+    (print-board board)
+    (print (get-available-moves '(3 3) board))))
+
+(define-test valid-jump
+    (let ((board (fill-board 'empty)))
+      (setf board (place-piece '(3 4) board 'red 'pawn))
+      (setf board (place-pieces '((2 3)(2 5)(4 3)(4 5)) board 'black 'pawn))
+      (print-board board)
+      (assert-false (valid-jump '(1 1) '(2 2) '(3 3) board))
+      (assert-false (valid-jump '(3 4) '(2 3) '(1 2) board))
+      (assert-false (valid-jump '(3 4) '(2 4) '(1 4) board))      
+      (assert-false (valid-jump '(3 4) '(3 3) '(3 2) board))      
+      (assert-false (valid-jump '(3 4) '(2 5) '(1 6) board))
+      (assert-false (valid-jump '(3 4) '(3 5) '(3 6) board))
+      (assert-false (valid-jump '(3 4) '(4 4) '(5 4) board))
+      (assert-true (valid-jump  '(3 4) '(4 3) '(5 2) board))
+      (assert-true (valid-moves  '((3 4) (4 5) (5 6)) board))))
+
+(define-test validate-king-jumps
+  (let ((board (fill-board 'empty)))
+    (setf board (place-piece '(3 4) board 'red 'king))
+    (setf board (place-pieces '((2 3)(2 5)(4 3)(4 5)) board 'black 'pawn))
+    (print-board board)
+    (assert-true (valid-jump '(3 4) '(2 3) '(1 2) board))    
+    (assert-true (valid-jump '(3 4) '(2 5) '(1 6) board))
+    (assert-true (valid-jump '(3 4) '(4 3) '(5 2) board))
+    (assert-true (valid-jump '(3 4) '(4 5) '(5 6) board))
+    (setf board (move-by-jump '(3 4) '(2 3) '(1 2) board))
+    (print-board board)
+    (assert-true (emptyp '(3 4) board))
+    (assert-true (emptyp '(2 3) board))
+    (assert-equal 'red (get-color-from-move '(1 2) board))))
+		 
+(define-test validate-moves
+  (let ((board (fill-board 'empty)))
+    (setf board (place-piece '(3 4) board 'red 'pawn))
+    (setf board (place-piece '(4 3) board 'black 'pawn))
+    (print-board board)
+    (assert-false (valid-moves '((3 4)(4 3)) board))
+    (assert-true (valid-moves '((3 4)(4 5)) board))
+    (assert-false (valid-moves '((4 3)(3 4)) board))
+    (assert-true (valid-moves '((4 3)(3 2)) board))))
+
+(define-test validate-double-jump
+  (let ((board (fill-board 'empty)))
+    (setf board (place-piece '(1 1) board 'red 'pawn))
+    (setf board (place-piece '(2 2) board 'black 'pawn))
+    (setf board (place-piece '(4 4) board 'black 'pawn))
+    (print-board board)
+    
+    (multiple-value-bind (validp new-board) (valid-moves '((1 1)(2 2)(3 3)(4 4)(5 5)) board)
+      (print-board new-board)
+      (assert-true validp)
+      (assert-true (emptyp '(1 1) new-board))
+      (assert-true (emptyp '(2 2) new-board))
+      (assert-true (emptyp '(3 3) new-board))    
+      (assert-true (emptyp '(4 4) new-board))
+      (assert-equal 'red (get-color-from-move '(5 5) new-board)))))
+
+(define-test validate-game-over
+  (let ((board (fill-board 'empty)))
+    (setf board (place-piece '(1 1) board 'red 'pawn))
+    (setf board (place-piece '(2 2) board 'black 'pawn))
+    (setf board (place-piece '(3 3) board 'black 'pawn))
+    (assert-true (game-overp board))))
+
+(define-test layer-tests					
+  (clear-layers)
+  (let ((my-image (make-img :x 0
+			    :y 10
+			    :width 100
+			    :height 200
+			    :image 'my-image)))
+    (add-image my-image)
+    (assert-equal 1 (layer-count))
+    (assert-equal *current-layer* 0)
+    (assert-true (member my-image (current-layer)))
+    (remove-image my-image)
+    (assert-false (member my-image (current-layer)))
+    (assert-equal 1 (layer-count))
+    (add-layer)
+    (add-image my-image)
+    (assert-equal 1 (length (current-layer)))
+    (add-layer)
+    (add-image my-image)
+    (assert-equal 1 (length (current-layer)))
+    (assert-equal 3 (layer-count))
+    (remove-layer *current-layer*)
+    (assert-equal 2 (layer-count))
+    (remove-layer *current-layer*)
+    (assert-equal 1 (layer-count))
+    (assert-true (null (current-layer)))))
